@@ -1,0 +1,12 @@
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\bin\Debug\net6.0\KolonLibrary.deps.json
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\bin\Debug\net6.0\KolonLibrary.dll
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\bin\Debug\net6.0\ref\KolonLibrary.dll
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\bin\Debug\net6.0\KolonLibrary.pdb
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\KolonLibrary.csproj.AssemblyReference.cache
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\KolonLibrary.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\KolonLibrary.AssemblyInfoInputs.cache
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\KolonLibrary.AssemblyInfo.cs
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\KolonLibrary.csproj.CoreCompileInputs.cache
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\KolonLibrary.dll
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\ref\KolonLibrary.dll
+C:\Users\Dennis\Documents\VSCode\Programs\KolonLanguage\KolonLibrary\obj\Debug\net6.0\KolonLibrary.pdb

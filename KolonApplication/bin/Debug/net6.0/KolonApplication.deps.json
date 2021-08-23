@@ -1,0 +1,36 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "KolonApplication/1.0.0": {
+        "dependencies": {
+          "KolonLibrary": "1.0.0"
+        },
+        "runtime": {
+          "KolonApplication.dll": {}
+        }
+      },
+      "KolonLibrary/1.0.0": {
+        "runtime": {
+          "KolonLibrary.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "KolonApplication/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "KolonLibrary/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

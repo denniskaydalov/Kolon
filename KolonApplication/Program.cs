@@ -1,4 +1,5 @@
 ﻿using System;
+using KolonLibrary;
 
 namespace KolonApplication
 {
@@ -6,7 +7,9 @@ namespace KolonApplication
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            lex lexer = new lex("a :: int = 4 b :: int = 9");
+            lexer.Tokenize();
+            Console.ReadKey();
         }
     }
 }
