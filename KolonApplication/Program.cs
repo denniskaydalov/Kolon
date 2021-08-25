@@ -7,7 +7,7 @@ namespace KolonApplication
     {
         static void Main(string[] args)
         {
-            lex lexer = new lex("a :: int = 4 b :: int = 9");
+            lex lexer = new lex("int foo=(4 compare (2-1))");
             lexer.Tokenize();
             Console.ReadKey();
         }

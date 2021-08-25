@@ -4,144 +4,87 @@ using System.Text.RegularExpressions;
 
 namespace KolonLibrary
 {
-    #region bad
-    /*
-    public enum Token
-    {
-        VarName,
-        DoubleColon,
-        VarType,
-        IntValue,
-        Equals
-    }
-
-    public class TokenDefinition
-    {
-        Regex pattern;
-        Token token;
-
-        public TokenDefinition(Token token, string pattern)
-        {
-            this.pattern = new Regex(pattern);
-            this.token = token;
-        }
-    }
-
-    public class lexer
-    {
-        public string InputString { private get; set; } = string.Empty;
-        Dictionary<Token, string> Tokens = new Dictionary<Token, string>();
-
-        public lexer()
-        {
-            Tokens.Add(Token.DoubleColon, @"^(::)");
-            Tokens.Add(Token.VarType, @"^(int)|(string)");
-            Tokens.Add(Token.IntValue, @"^\d*");
-            Tokens.Add(Token.Equals, @"^=");
-            Tokens.Add(Token.VarName, @"^[a-zA-Z0-9_]*");
-        }
-
-        public void Tokenize()
-        {
-            while (!string.IsNullOrWhiteSpace(InputString))
-            {
-                InputString.Trim();
-                TokenMatch match = FindTokens(InputString);
-                if (match.IsMatch == false)
-                {
-                    Console.WriteLine("match failed");
-                }
-            }
-        }
-
-        TokenMatch FindTokens(string InputString)
-        {
-            foreach (KeyValuePair<Token, string> pair in Tokens)
-            {
-                var match = new Regex(pair.Value).Match(InputString);
-                if (match.Success)
-                {
-                    string _remainingText = string.Empty;
-                    if (match.Length != InputString.Length)
-                        _remainingText = InputString.Substring(match.Length).Trim();
-                    this.InputString = _remainingText.Trim();   
-
-                    System.Console.WriteLine($"{pair.Key.ToString()}, {match.Value}");
-
-                    return new TokenMatch()
-                    {
-                        IsMatch = true,
-                        token = pair.Key,
-                        remainingText = _remainingText,
-                        value = match.Value
-                    };
-                }
-            }
-
-            return new TokenMatch() { IsMatch = false };
-        }
-    }
-
-    public class TokenMatch
-    {
-        public Token token { get; set; }
-        public string value { get; set; }
-        public string remainingText { get; set; }
-        public bool IsMatch { get; set; }
-    }
-    */
-    #endregion bad
-
+    /// <summary>
+    /// enum of all possible tokens
+    /// </summary>
     public enum TokenType
     {
         Int,
+        Bool,
         Ident,
-        DoubleColon,
+        Print,
+        DoubleEqual,
         IntValue,
-        Equals
+        BoolValue,
+        Equals,
+        Add,
+        Sub,
+        Div,
+        Mul,
+        GreaterThan,
+        LesserThan,
+        OpeningParen,
+        ClosingParen,
+        NotEqual,
     }
 
     public class lex
     {
+        //string for the lexer to tokenize
         private string InputString = string.Empty;
+        //list of all token definitions, containing the TokenType and the regex pattern for the token type
         public List<TokenDef> TokenDefinitions = new List<TokenDef>();
+        //tokens that have been matched
         public List<TokenMatch> TokenMatches = new List<TokenMatch>();
 
         public lex(string InputString)
         {
             this.InputString = InputString;
 
-            TokenDefinitions.Add(new TokenDef(TokenType.Int, "int"));
-            TokenDefinitions.Add(new TokenDef(TokenType.Ident, "[a-zA-Z_][a-zA-Z0-9_]*", true));
-            TokenDefinitions.Add(new TokenDef(TokenType.DoubleColon, "(::)"));
-            TokenDefinitions.Add(new TokenDef(TokenType.IntValue, @"\d+", true));
-            TokenDefinitions.Add(new TokenDef(TokenType.Equals, "="));
+            //add token definitions
+            TokenDefinitions.Add(new TokenDef(TokenType.Int, "^(int) "));
+            TokenDefinitions.Add(new TokenDef(TokenType.Bool, "^(bool) "));
+            TokenDefinitions.Add(new TokenDef(TokenType.Print, "^(print) "));
+            TokenDefinitions.Add(new TokenDef(TokenType.DoubleEqual, "^(==)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Ident, "^[a-zA-Z_][a-zA-Z0-9_]*"));
+            TokenDefinitions.Add(new TokenDef(TokenType.IntValue, @"^\d+"));
+            TokenDefinitions.Add(new TokenDef(TokenType.BoolValue, @"^(true)|^(false)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Equals, "^="));
+            TokenDefinitions.Add(new TokenDef(TokenType.Add, @"^\+"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Sub, "^-"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Div, @"^\/"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Mul, @"^\*"));
+            TokenDefinitions.Add(new TokenDef(TokenType.GreaterThan, "^>"));
+            TokenDefinitions.Add(new TokenDef(TokenType.LesserThan, "^<"));
+            TokenDefinitions.Add(new TokenDef(TokenType.OpeningParen, @"^\("));
+            TokenDefinitions.Add(new TokenDef(TokenType.ClosingParen, @"^\)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.NotEqual, @"^(!=)"));
         }
 
+        /// <summary>
+        /// tokenize input string
+        /// </summary>
         public void Tokenize()
         {
-            string Token = string.Empty;
-
-            foreach(char c in InputString + ' ')
+            for (int i = 0; i < InputString.Length; i++)
             {
-                if(char.IsWhiteSpace(c))
+                if (char.IsWhiteSpace(InputString[i])) continue;
+                else
                 {
                     foreach (var token in TokenDefinitions)
                     {
-                        var TokenMatch = token.Match(Token);
+                        var TokenMatch = token.Match(InputString[i..]);
+                        Console.WriteLine(InputString[i..]);
                         if (TokenMatch.IsMatch)
                         {
                             TokenMatches.Add(TokenMatch);
+                            i += TokenMatch.value.Length - 1;
                             break;
                         }
                     }
-                    Token = string.Empty;
-                    continue;
                 }
-                Token += c;
             }
-            
-            foreach(var token in TokenMatches)
+            foreach (var token in TokenMatches)
             {
                 Console.WriteLine($"{token.TokenType}, {token.value}");
             }
@@ -152,15 +95,14 @@ namespace KolonLibrary
     {
         private TokenType TokenType;
         private Regex regex;
-        private bool HasValue;
 
-        public TokenDef(TokenType TokenType, string regex, bool HasValue = false)
+        public TokenDef(TokenType TokenType, string regex)
         {
             this.TokenType = TokenType;
             this.regex = new Regex(regex);
-            this.HasValue = HasValue;
         }
 
+        //Match function, if the match is a success, return a TokenMatch with the information
         public TokenMatch Match(string Token)
         {
             var match = regex.Match(Token);
@@ -169,11 +111,12 @@ namespace KolonLibrary
                 return new TokenMatch()
                 {
                     TokenType = TokenType,
-                    value = HasValue ? match.Value : string.Empty,
+                    //conditional statement to only return a value if the Token has a value
+                    value = match.Value,
                     IsMatch = true
                 };
             }
-            return new TokenMatch() { IsMatch = false };
+            return new TokenMatch() { IsMatch = false};
         }
     }
 
