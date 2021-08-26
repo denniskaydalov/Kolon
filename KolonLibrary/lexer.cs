@@ -26,18 +26,17 @@ namespace KolonLibrary
         OpeningParen,
         ClosingParen,
         NotEqual,
+        NewLine
     }
 
-    public class lex
+    public class Lexer
     {
         //string for the lexer to tokenize
-        private string InputString = string.Empty;
+        private string[] InputString;
         //list of all token definitions, containing the TokenType and the regex pattern for the token type
         public List<TokenDef> TokenDefinitions = new List<TokenDef>();
-        //tokens that have been matched
-        public List<TokenMatch> TokenMatches = new List<TokenMatch>();
 
-        public lex(string InputString)
+        public Lexer(string[] InputString)
         {
             this.InputString = InputString;
 
@@ -66,28 +65,35 @@ namespace KolonLibrary
         /// </summary>
         public void Tokenize()
         {
-            for (int i = 0; i < InputString.Length; i++)
+            List<List<TokenMatch>> TokenMatchesList = new List<List<TokenMatch>>();
+
+            foreach (var InputString in InputString)
             {
-                if (char.IsWhiteSpace(InputString[i])) continue;
-                else
+                //tokens that have been matched
+                List<TokenMatch> TokenMatches = new List<TokenMatch>();
+
+                for (int i = 0; i < InputString.Length; i++)
                 {
-                    foreach (var token in TokenDefinitions)
+                    if (char.IsWhiteSpace(InputString[i])) continue;
+                    else
                     {
-                        var TokenMatch = token.Match(InputString[i..]);
-                        Console.WriteLine(InputString[i..]);
-                        if (TokenMatch.IsMatch)
+                        foreach (var token in TokenDefinitions)
                         {
-                            TokenMatches.Add(TokenMatch);
-                            i += TokenMatch.value.Length - 1;
-                            break;
+                            var TokenMatch = token.Match(InputString[i..]);
+                            if (TokenMatch.IsMatch)
+                            {
+                                TokenMatches.Add(TokenMatch);
+                                i += TokenMatch.Value.Length - 1;
+                                break;
+                            }
                         }
                     }
                 }
+                TokenMatchesList.Add(TokenMatches);
             }
-            foreach (var token in TokenMatches)
-            {
-                Console.WriteLine($"{token.TokenType}, {token.value}");
-            }
+            
+            Parser parser = new Parser(TokenMatchesList);
+            parser.Parse();
         }
     }
 
@@ -112,7 +118,7 @@ namespace KolonLibrary
                 {
                     TokenType = TokenType,
                     //conditional statement to only return a value if the Token has a value
-                    value = match.Value,
+                    Value = match.Value,
                     IsMatch = true
                 };
             }
@@ -123,7 +129,7 @@ namespace KolonLibrary
     public class TokenMatch
     {
         public TokenType TokenType { get; set; }
-        public string value { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
         public bool IsMatch { get; set; }
     }
 }
