@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using KolonLibrary;
 
@@ -8,14 +9,14 @@ namespace KolonApplication
     {
         static void Main(string[] args)
         {
-            if(args.Length > 0)
+            if (args.Length > 0)
             {
                 var lines = File.ReadAllLines(args[1]);
 
                 Lexer lexer = new(lines);
                 lexer.Tokenize();
             }
-            else Console.WriteLine("you must pass a test file with at least one line of code as an argument");
+            else Console.WriteLine("you must pass a text file with at least one line as an argument"); 
         }
     }
 }

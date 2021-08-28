@@ -26,7 +26,8 @@ namespace KolonLibrary
         OpeningParen,
         ClosingParen,
         NotEqual,
-        NewLine
+        Bang,
+        Operator
     }
 
     public class Lexer
@@ -58,6 +59,8 @@ namespace KolonLibrary
             TokenDefinitions.Add(new TokenDef(TokenType.OpeningParen, @"^\("));
             TokenDefinitions.Add(new TokenDef(TokenType.ClosingParen, @"^\)"));
             TokenDefinitions.Add(new TokenDef(TokenType.NotEqual, @"^(!=)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.NotEqual, @"^!"));
+
         }
 
         /// <summary>
@@ -65,6 +68,7 @@ namespace KolonLibrary
         /// </summary>
         public void Tokenize()
         {
+            //token matches, nested list so that we automatically know each line break
             List<List<TokenMatch>> TokenMatchesList = new List<List<TokenMatch>>();
 
             foreach (var InputString in InputString)
@@ -72,6 +76,7 @@ namespace KolonLibrary
                 //tokens that have been matched
                 List<TokenMatch> TokenMatches = new List<TokenMatch>();
 
+                //loop through the input string trying to find a regex match, when found, add the match to the TokenMatchesList
                 for (int i = 0; i < InputString.Length; i++)
                 {
                     if (char.IsWhiteSpace(InputString[i])) continue;
@@ -83,6 +88,7 @@ namespace KolonLibrary
                             if (TokenMatch.IsMatch)
                             {
                                 TokenMatches.Add(TokenMatch);
+                                //add the matche's length to it so we don't have to loop through extra characters that we've already found a match for
                                 i += TokenMatch.Value.Length - 1;
                                 break;
                             }
@@ -91,7 +97,7 @@ namespace KolonLibrary
                 }
                 TokenMatchesList.Add(TokenMatches);
             }
-            
+
             Parser parser = new Parser(TokenMatchesList);
             parser.Parse();
         }
