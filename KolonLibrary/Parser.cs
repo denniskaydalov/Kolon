@@ -20,55 +20,81 @@ namespace KolonLibrary
         {
             switch(TokenMatches[0].TokenType)
             {
-                case TokenType.Int or TokenType.Bool:
-                    VariableCheck();
+                case TokenType.Int or TokenType.Bool :
+                    if(TokenMatches[1].TokenType == TokenType.Ident)
+                        if(TokenMatches[2].TokenType == TokenType.Equals)
+                            Console.WriteLine(Expression(TokenMatches.GetRange(3, TokenMatches.Count - 3))); //pass in the expression part of the variable, ignoring the type, ident and equals token
                     break;
             }
         }
 
-        void VariableCheck()
+        /// <summary>
+        /// recursive function, checks the validity of an arithmetic expression
+        /// </summary>
+        /// <param name="matches"></param>
+        /// <returns></returns>
+        bool Expression(List<TokenMatch> matches)
         {
-            if (TokenMatches[1].TokenType == TokenType.Ident)
+            /*
+            foreach (var match in matches)
             {
-                Console.WriteLine(TokenMatches.GetRange(3, TokenMatches.Count - 3).Select(p => p.TokenType).ToList().SequenceEqual(Expression(TokenMatches.GetRange(3, TokenMatches.Count - 3).Select(p => p.TokenType).ToList())));
+                Console.Write($"{match.TokenType}, ");
             }
-        }
-
-        List<TokenType> Expression(List<TokenType> TokenMatches)
-        {
-            try
+            Console.WriteLine("\nExpresion method called\n");
+            */
+            if (matches.Count > 0)
             {
-                List<TokenType> GroupingList = new List<TokenType>() { TokenType.OpeningParen };
-                int depth = 0;
-                for (int i = 0; i < TokenMatches.Count; i++)
+                //switch case for the first token, to check whether the function should validate a binary expression, or a grouping expression, etc..
+                switch (matches[0].TokenType)
                 {
-                    TokenType match = TokenMatches[i];
-                    if (match == TokenType.OpeningParen) depth++;
-                    else if (match == TokenType.ClosingParen) depth--;
-                    else if (match == TokenType.Operator && depth == 0)
-                    {
-                        depth = i;
-                    }
+                    case TokenType.IntValue:
+                        try
+                        {
+                            //check if the expression matches: number - boolean - expression
+                            if (matches[1].TokenType == TokenType.Operator && Expression(matches.GetRange(2, matches.Count - 2)))
+                                return true; 
+                            else return false;
+                        }
+                        catch (ArgumentOutOfRangeException) { return true; }
+                        catch (Exception e) { Console.WriteLine(e); return false; }
+                    case TokenType.OpeningParen:
+                        //find the matching closing parenthese to the current opening parenthese
+                        int ParenDepth = 0;
+                        for (int i = 0; i < matches.Count; i++)
+                        {
+                            TokenMatch? match = matches[i];
+                            if (match.TokenType == TokenType.ClosingParen)
+                            {
+                                ParenDepth--;
+                                if (ParenDepth == 0)
+                                {
+                                    //instead of creating a new variable to hold the index of the closing parenthese, use the, now useless, ParenDepth variable
+                                    ParenDepth = i;
+                                    break;
+                                }
+                            }
+                            else if (match.TokenType == TokenType.OpeningParen) ParenDepth++;
+                        }
+                        //check if the expresion between the parentheses is valid
+                        if (Expression(matches.GetRange(1, ParenDepth - 1)))
+                        {
+                            //check for any arithmetic expressions after the closing parenthese that was just checked, and check if the next expression is valid
+                            if (ParenDepth != matches.Count - 1)
+                            {
+                                if (matches[ParenDepth + 1].TokenType == TokenType.Operator)
+                                {
+                                    if (Expression(matches.GetRange(ParenDepth + 2, matches.Count - ParenDepth - 2)))
+                                        return true;
+                                }
+                            }
+                            else return true;
+                        }
+                        break;
+                    default:
+                        return false;
                 }
-                GroupingList.AddRange(TokenMatches.GetRange(1, (TokenMatches.Count - 2) - depth));
-                GroupingList.Add(TokenType.ClosingParen);
-
-                List<TokenType> BinaryList = new List<TokenType>();
-                try
-                {
-                    BinaryList.AddRange(TokenMatches.GetRange(0, TokenMatches.IndexOf(TokenType.Operator)));
-                    BinaryList.Add(TokenType.Operator);
-                    BinaryList.AddRange(TokenMatches.GetRange(TokenMatches.IndexOf(TokenType.Operator) + 1, TokenMatches.Count - TokenMatches.IndexOf(TokenType.Operator) - 1));
-                }
-                catch (Exception ex) { Console.WriteLine(ex.Message); }
-
-                if (TokenMatches.SequenceEqual(new List<TokenType>() { TokenType.IntValue }) || TokenMatches.SequenceEqual(new List<TokenType>() { TokenType.BoolValue })) return TokenMatches;
-                if (TokenMatches.SequenceEqual(GroupingList)) return TokenMatches;
-                if (TokenMatches.SequenceEqual(BinaryList)) return TokenMatches;
-
-                return new List<TokenType>();
             }
-            catch (Exception ex) { Console.WriteLine(ex.Message); return new List<TokenType>(); }
+            return false;
         }
     }
 
@@ -81,6 +107,7 @@ namespace KolonLibrary
 
     public class Parser
     {
+        //TODO : run a check somewhere to make sure that a line is not just an empty line, and actually contains tokens
         private List<List<TokenMatch>> TokenMatches = new List<List<TokenMatch>>();
 
         public Parser(List<List<TokenMatch>> TokenMatches)

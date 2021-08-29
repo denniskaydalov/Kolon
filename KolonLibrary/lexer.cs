@@ -126,7 +126,7 @@ namespace KolonLibrary
                     //conditional statement to only return a value if the Token has a value
                     Value = match.Value,
                     IsMatch = true
-                };
+                };  
             }
             return new TokenMatch() { IsMatch = false};
         }
