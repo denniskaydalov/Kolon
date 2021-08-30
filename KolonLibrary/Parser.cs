@@ -20,7 +20,7 @@ namespace KolonLibrary
         {
             switch(TokenMatches[0].TokenType)
             {
-                case TokenType.Int or TokenType.Bool :
+                case TokenType.Int:
                     if(TokenMatches[1].TokenType == TokenType.Ident)
                         if(TokenMatches[2].TokenType == TokenType.Equals)
                             Console.WriteLine(Expression(TokenMatches.GetRange(3, TokenMatches.Count - 3))); //pass in the expression part of the variable, ignoring the type, ident and equals token
@@ -42,6 +42,7 @@ namespace KolonLibrary
             }
             Console.WriteLine("\nExpresion method called\n");
             */
+            Console.WriteLine("Expression method called");
             if (matches.Count > 0)
             {
                 //switch case for the first token, to check whether the function should validate a binary expression, or a grouping expression, etc..
@@ -50,8 +51,8 @@ namespace KolonLibrary
                     case TokenType.IntValue:
                         try
                         {
-                            //check if the expression matches: number - boolean - expression
-                            if (matches[1].TokenType == TokenType.Operator && Expression(matches.GetRange(2, matches.Count - 2)))
+                            //check if the expression matches: number - operator - expression
+                            if (matches[1].GroupingType == TokenType.Operator && Expression(matches.GetRange(2, matches.Count - 2)))
                                 return true; 
                             else return false;
                         }
@@ -81,7 +82,7 @@ namespace KolonLibrary
                             //check for any arithmetic expressions after the closing parenthese that was just checked, and check if the next expression is valid
                             if (ParenDepth != matches.Count - 1)
                             {
-                                if (matches[ParenDepth + 1].TokenType == TokenType.Operator)
+                                if (matches[ParenDepth + 1].GroupingType == TokenType.Operator)
                                 {
                                     if (Expression(matches.GetRange(ParenDepth + 2, matches.Count - ParenDepth - 2)))
                                         return true;
@@ -89,6 +90,10 @@ namespace KolonLibrary
                             }
                             else return true;
                         }
+                        break;
+                    case TokenType.Sub:
+                        if(Expression(matches.GetRange(1, matches.Count - 1)))
+                            return true;
                         break;
                     default:
                         return false;
@@ -123,8 +128,10 @@ namespace KolonLibrary
                 TokenMatchesOptimized.AddRange(list);
                 foreach (var match in list)
                 {
-                    if (match.TokenType == TokenType.DoubleEqual || match.TokenType == TokenType.NotEqual || match.TokenType == TokenType.LesserThan || match.TokenType == TokenType.GreaterThan || match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
-                        TokenMatchesOptimized[TokenMatchesOptimized.IndexOf(match)] = new TokenMatch() { TokenType = TokenType.Operator, Value = match.Value };
+                    //simplify all the operators to one operator group
+                    if (match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
+                        TokenMatchesOptimized[TokenMatchesOptimized.IndexOf(match)].GroupingType = TokenType.Operator;
+                    //match.TokenType == TokenType.DoubleEqual || match.TokenType == TokenType.NotEqual || match.TokenType == TokenType.LesserThan || match.TokenType == TokenType.GreaterThan
                 }
                 Rules rules = new Rules(TokenMatchesOptimized);
                 rules.VerifyMatches();

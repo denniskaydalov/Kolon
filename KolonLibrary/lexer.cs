@@ -137,5 +137,6 @@ namespace KolonLibrary
         public TokenType TokenType { get; set; }
         public string Value { get; set; } = string.Empty;
         public bool IsMatch { get; set; }
+        public TokenType? GroupingType { get; set; }
     }
 }
