@@ -60,7 +60,6 @@ namespace KolonLibrary
             TokenDefinitions.Add(new TokenDef(TokenType.ClosingParen, @"^\)"));
             TokenDefinitions.Add(new TokenDef(TokenType.NotEqual, @"^(!=)"));
             TokenDefinitions.Add(new TokenDef(TokenType.NotEqual, @"^!"));
-
         }
 
         /// <summary>
