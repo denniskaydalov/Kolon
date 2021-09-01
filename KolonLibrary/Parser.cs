@@ -26,12 +26,14 @@ namespace KolonLibrary
                         if (TokenMatches[2].TokenType == TokenType.Equals)
                         {
                             //start the AST with 3 nodes: Int > Ident > Equals
-                            Node node = new Node() { TokenMatch = TokenMatches[2] };
+                            Node node = new Node() { TokenMatch = TokenMatches[2] }; 
                             node.Parent = new Node() { TokenMatch = TokenMatches[1] };
                             node.Parent.Children.Add(node);
                             node.Parent.Parent = new Node() { TokenMatch = TokenMatches[0] };
                             node.Parent.Parent.Children.Add(node.Parent);
-                        Console.WriteLine(Expression(TokenMatches.GetRange(3, TokenMatches.Count - 3), node, out node)); //pass in the expression part of the variable, ignoring the type, ident and equals token
+                            //sort the expression so it follows the rules of bedmas
+                            SetupOrder(TokenMatches.GetRange(3, TokenMatches.Count - 3), out TokenMatches);
+                            Console.WriteLine(Expression(TokenMatches, node, out node));
                             node.ListInfo();
                         }
                     }
@@ -39,6 +41,108 @@ namespace KolonLibrary
             }
         }
 
+        #region bedmas fix
+        void SetupOrder (List<TokenMatch> matches, out List<TokenMatch> outMatches)
+        {
+            outMatches = matches;
+            //list of all indexes where the operators that need to be grouped are, to group the substraction and addition operators away from the multiplication and division operators
+            List<int[]> BracketOperatorIndex = new();
+            //check if it's necessary to start a new group of operators, or just extend the current one
+            bool locked = true;
+            for (int i = 0; i < matches.Count; i++)
+            {
+                TokenMatch? match = matches[i];
+                if(match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub)
+                {
+                    //if locked, then add a new set of indexes to the list, containing the index of the current operator to group
+                    if (locked)
+                    {
+                        BracketOperatorIndex.Add(new int[2] { i, i });
+                        locked = false;
+                    }
+                    //if not locked, then change the second index of the group indexes to the latest operator found
+                    else BracketOperatorIndex[BracketOperatorIndex.Count - 1][1] = i;
+                    continue;
+                }
+                //if theres a operator that isn't sub or add, or a bracket, set locked to true so that the group is finished
+                else if (match.TokenType == TokenType.OpeningParen || match.TokenType == TokenType.ClosingParen || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
+                    locked = true;
+            }
+
+            //list of the indexes where the parentheses need to go to group the operators, and a bool to know if the the parenthese needs to be a opening parenthese, or a closing one
+            List<(int, bool)> IndexInsertList = new();
+            foreach (var index in BracketOperatorIndex)
+            {
+                //check if there is already brackets around the group
+                if (index[0] > 1 && matches.Count - index[1] > 1 && matches[index[0] - 2].TokenType == TokenType.OpeningParen && matches[index[1] + 2].TokenType == TokenType.ClosingParen) continue;
+                int[] IndexInsert = new int[2];
+                //if the index before the first operator is a int value, then add the space to the IndexInsertList (gets added at the end)
+                if(matches[index[0] - 1].TokenType == TokenType.IntValue)
+                {
+                    IndexInsert[0] = index[0] - 1;
+                }
+                //if the index before the first operator is a closing bracket, then check where is the matching opening bracket, and add the index before that to the IndexInsertList (gets added at the end)
+                else if (matches[index[0] - 1].TokenType == TokenType.ClosingParen)
+                {
+                    int depth = 0;
+                    for (int i = index[0]; i != 0; i--)
+                    {
+                        TokenMatch? match = matches[i];
+                        if (match.TokenType == TokenType.OpeningParen)
+                        {
+                            depth--;
+                            if (depth == 0)
+                            {
+                                IndexInsert[0] = i - 1;
+                            }
+                        }
+                        else if (match.TokenType == TokenType.ClosingParen) depth++;
+                    }
+                }
+
+                //same as the check before, but reversed for the second operator (it could be the same operator as the first operator, as not all expressions have more than one operator)
+                if(matches[index[1] + 1].TokenType == TokenType.IntValue)
+                {
+                    IndexInsert[1] = index[1] + 2;
+                }
+                else if (matches[index[1] + 1].TokenType == TokenType.OpeningParen)
+                {
+                    int depth = 0;
+                    for (int i = index[1]; i < matches.Count; i++)
+                    {
+                        TokenMatch? match = matches[i];
+                        if (match.TokenType == TokenType.ClosingParen)
+                        {
+                            depth++;
+                            if (depth == 0)
+                            {
+                                IndexInsert[1] = i;
+                            }
+                        }
+                        else if (match.TokenType == TokenType.OpeningParen) depth--;
+                    }
+                }
+                
+                IndexInsertList.Add((IndexInsert[0], false));
+                IndexInsertList.Add((IndexInsert[1], true));
+            }
+
+            //sort the list so that when adding the parentheses, it won't mess up the indexes of the other parentheses that need to be added
+            IndexInsertList.Sort();
+
+            //loop through the list backwards, to not interfere with the previous parentheses that need to be added
+            for (int i = IndexInsertList.Count - 1; i >= 0; i--)
+            {
+                (int, bool) index = IndexInsertList[i];
+                if (!index.Item2)
+                    matches.Insert(index.Item1, new TokenMatch() { TokenType = TokenType.OpeningParen, Value = "(", IsMatch = true });
+                else 
+                    matches.Insert(index.Item1, new TokenMatch() { TokenType = TokenType.ClosingParen, Value = ")", IsMatch = true });
+            }
+        }
+        #endregion bedmas fix
+
+        #region expression check
         /// <summary>
         /// recursive function, checks the validity of an arithmetic expression
         /// </summary>
@@ -53,8 +157,6 @@ namespace KolonLibrary
             }
             Console.WriteLine("\nExpresion method called\n");
             */
-            Console.WriteLine("Expression method called");
-            //node.ListInfo();
             outNode = node;
             if (matches.Count > 0)
             {
@@ -137,6 +239,7 @@ namespace KolonLibrary
             }
             return false;
         }
+        # endregion expression check
     }
 
     public class Node
@@ -191,7 +294,6 @@ namespace KolonLibrary
                     //simplify all the operators to one operator group
                     if (match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
                         TokenMatchesOptimized[TokenMatchesOptimized.IndexOf(match)].GroupingType = TokenType.Operator;
-                    //match.TokenType == TokenType.DoubleEqual || match.TokenType == TokenType.NotEqual || match.TokenType == TokenType.LesserThan || match.TokenType == TokenType.GreaterThan
                 }
                 Rules rules = new Rules(TokenMatchesOptimized);
                 rules.VerifyMatches();
