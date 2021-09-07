@@ -12,6 +12,7 @@ namespace KolonLibrary
         Int,
         Bool,
         Ident,
+        IdentRef,
         Print,
         DoubleEqual,
         IntValue,
@@ -47,6 +48,7 @@ namespace KolonLibrary
             TokenDefinitions.Add(new TokenDef(TokenType.Print, "^(print) "));
             TokenDefinitions.Add(new TokenDef(TokenType.DoubleEqual, "^(==)"));
             TokenDefinitions.Add(new TokenDef(TokenType.Ident, "^[a-zA-Z_][a-zA-Z0-9_]*"));
+            TokenDefinitions.Add(new TokenDef(TokenType.IdentRef, @"^\$[a-zA-Z_][a-zA-Z0-9_]*"));
             TokenDefinitions.Add(new TokenDef(TokenType.IntValue, @"^\d+"));
             TokenDefinitions.Add(new TokenDef(TokenType.BoolValue, @"^(true)|^(false)"));
             TokenDefinitions.Add(new TokenDef(TokenType.Equals, "^="));

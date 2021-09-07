@@ -20,28 +20,63 @@ namespace KolonLibrary
         {
             switch(TokenMatches[0].TokenType)
             {
-                case TokenType.Int:
-                    if (TokenMatches[1].TokenType == TokenType.Ident)
+                case TokenType.Int or TokenType.Bool:
+                    if(TokenMatches[1].TokenType == TokenType.Ident)
                     {
-                        if (TokenMatches[2].TokenType == TokenType.Equals)
+                        if(TokenMatches[2].TokenType == TokenType.Equals)
                         {
                             //start the AST with 3 nodes: Int > Ident > Equals
-                            Node node = new Node() { TokenMatch = TokenMatches[2] }; 
-                            node.Parent = new Node() { TokenMatch = TokenMatches[1] };
-                            node.Parent.Children.Add(node);
-                            node.Parent.Parent = new Node() { TokenMatch = TokenMatches[0] };
-                            node.Parent.Parent.Children.Add(node.Parent);
-                            //sort the expression so it follows the rules of bedmas
-                            SetupOrder(TokenMatches.GetRange(3, TokenMatches.Count - 3), out TokenMatches);
-                            Console.WriteLine(Expression(TokenMatches, node, out node));
-                            node.ListInfo();
+                            Node VariableDeclareNode = new Node() { TokenMatch = TokenMatches[2] }; 
+                            VariableDeclareNode.Parent = new Node() { TokenMatch = TokenMatches[1] };
+                            VariableDeclareNode.Parent.Children.Add(VariableDeclareNode);
+                            VariableDeclareNode.Parent.Parent = new Node() { TokenMatch = TokenMatches[0] };
+                            VariableDeclareNode.Parent.Parent.Children.Add(VariableDeclareNode.Parent);
+                            if (TokenMatches[0].TokenType == TokenType.Int)
+                            {
+                                //sort the expression so it follows the rules of bedmas
+                                SetupOrder(TokenMatches.GetRange(3, TokenMatches.Count - 3), out TokenMatches);
+                                Console.WriteLine(Expression(TokenMatches, VariableDeclareNode, out VariableDeclareNode));
+                            }
+                            else
+                            {
+                                if (TokenMatches[3].TokenType == TokenType.BoolValue)
+                                {
+                                    Node BoolNode = new Node() { TokenMatch = TokenMatches[3], Parent = VariableDeclareNode };
+                                    VariableDeclareNode.Children.Add(BoolNode);
+                                    VariableDeclareNode = BoolNode;
+                                    Console.WriteLine("True");
+                                }
+                            }
+                            VariableDeclareNode.ListInfo();
                         }
                     }
+                    break;
+                case TokenType.IdentRef:
+                    if(TokenMatches[1].TokenType == TokenType.Equals)
+                    {
+                        Node VariableSetNode = new Node() { TokenMatch = TokenMatches[1] };
+                        VariableSetNode.Parent = new Node() { TokenMatch = TokenMatches[0] };
+                        VariableSetNode.Parent.Children.Add(VariableSetNode);
+                        SetupOrder(TokenMatches.GetRange(2, TokenMatches.Count - 2), out TokenMatches);
+                        Console.WriteLine(Expression(TokenMatches, VariableSetNode, out VariableSetNode));
+                        VariableSetNode.ListInfo();
+                    }
+                    break;
+                case TokenType.Print:
+                    Node PrintNode = new Node() { TokenMatch = TokenMatches[0] };
+                    SetupOrder(TokenMatches.GetRange(1, TokenMatches.Count - 1), out TokenMatches);
+                    Console.WriteLine(Expression(TokenMatches, PrintNode, out PrintNode));
+                    PrintNode.ListInfo();
                     break;
             }
         }
 
         #region bedmas fix
+        /// <summary>
+        /// Add parentheses so that the expression works with the bedmas rules
+        /// </summary>
+        /// <param name="matches"></param>
+        /// <param name="outMatches"></param>
         void SetupOrder (List<TokenMatch> matches, out List<TokenMatch> outMatches)
         {
             outMatches = matches;
@@ -77,7 +112,7 @@ namespace KolonLibrary
                 if (index[0] > 1 && matches.Count - index[1] > 1 && matches[index[0] - 2].TokenType == TokenType.OpeningParen && matches[index[1] + 2].TokenType == TokenType.ClosingParen) continue;
                 int[] IndexInsert = new int[2];
                 //if the index before the first operator is a int value, then add the space to the IndexInsertList (gets added at the end)
-                if(matches[index[0] - 1].TokenType == TokenType.IntValue)
+                if(matches[index[0] - 1].TokenType == TokenType.IntValue || matches[index[0] - 1].TokenType == TokenType.IdentRef)
                 {
                     IndexInsert[0] = index[0] - 1;
                 }
@@ -101,7 +136,7 @@ namespace KolonLibrary
                 }
 
                 //same as the check before, but reversed for the second operator (it could be the same operator as the first operator, as not all expressions have more than one operator)
-                if(matches[index[1] + 1].TokenType == TokenType.IntValue)
+                if(matches[index[1] + 1].TokenType == TokenType.IntValue || matches[index[1] + 1].TokenType  == TokenType.IdentRef)
                 {
                     IndexInsert[1] = index[1] + 2;
                 }
@@ -134,10 +169,10 @@ namespace KolonLibrary
             for (int i = IndexInsertList.Count - 1; i >= 0; i--)
             {
                 (int, bool) index = IndexInsertList[i];
-                if (!index.Item2)
-                    matches.Insert(index.Item1, new TokenMatch() { TokenType = TokenType.OpeningParen, Value = "(", IsMatch = true });
-                else 
+                if (index.Item2)
                     matches.Insert(index.Item1, new TokenMatch() { TokenType = TokenType.ClosingParen, Value = ")", IsMatch = true });
+                else
+                    matches.Insert(index.Item1, new TokenMatch() { TokenType = TokenType.OpeningParen, Value = "(", IsMatch = true });
             }
         }
         #endregion bedmas fix
@@ -163,7 +198,7 @@ namespace KolonLibrary
                 //switch case for the first token, to check whether the function should validate a binary expression, or a grouping expression, etc..
                 switch (matches[0].TokenType)
                 {
-                    case TokenType.IntValue:
+                    case TokenType.IntValue or TokenType.IdentRef:
                         try
                         {
                             if (matches[1].GroupingType == TokenType.Operator)
@@ -239,7 +274,8 @@ namespace KolonLibrary
             }
             return false;
         }
-        # endregion expression check
+        #endregion expression check
+
     }
 
     public class Node
@@ -287,6 +323,7 @@ namespace KolonLibrary
         {
             foreach (var list in TokenMatches)
             {
+                if (list.Count == 0) continue;
                 List<TokenMatch> TokenMatchesOptimized = new List<TokenMatch>();
                 TokenMatchesOptimized.AddRange(list);
                 foreach (var match in list)
