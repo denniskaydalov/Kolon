@@ -9,13 +9,14 @@ namespace KolonLibrary
 {
     public class Rules
     {
+        private List<Statement> Statements = new();
         private List<TokenMatch> TokenMatches;
 
         public Rules(List<TokenMatch> TokenMatches)
         {
             this.TokenMatches = TokenMatches;
         }
-
+        #region verification
         public void VerifyMatches()
         {
             switch(TokenMatches[0].TokenType)
@@ -48,6 +49,8 @@ namespace KolonLibrary
                                 }
                             }
                             VariableDeclareNode.ListInfo();
+                            var statement = new Statement();
+                            statement.ResolveExpressionValue(VariableDeclareNode.GetRootNode().Children[0]);
                         }
                     }
                     break;
@@ -67,9 +70,11 @@ namespace KolonLibrary
                     SetupOrder(TokenMatches.GetRange(1, TokenMatches.Count - 1), out TokenMatches);
                     Console.WriteLine(Expression(TokenMatches, PrintNode, out PrintNode));
                     PrintNode.ListInfo();
+                    Statements.Add(new MethodCall(new List<Node> { PrintNode }, StatementType.Print));
                     break;
             }
         }
+        #endregion verification
 
         #region bedmas fix
         /// <summary>
@@ -82,13 +87,20 @@ namespace KolonLibrary
             outMatches = matches;
             //list of all indexes where the operators that need to be grouped are, to group the substraction and addition operators away from the multiplication and division operators
             List<int[]> BracketOperatorIndex = new();
-            //check if it's necessary to start a new group of operators, or just extend the current one
+            //variable to check if it's necessary to start a new group of operators, or just extend the current one
             bool locked = true;
             for (int i = 0; i < matches.Count; i++)
             {
                 TokenMatch? match = matches[i];
-                if(match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub)
+                if(match.TokenType == TokenType.Div || match.TokenType == TokenType.Mul)
                 {
+                    /*
+                    if (match.TokenType == TokenType.Sub && ((i == 0 || matches[i - 1].GroupingType == TokenType.Operator || matches[i - 1].TokenType == TokenType.OpeningParen) && (matches[i + 1].TokenType != TokenType.Operator)))
+                    {
+                        //Console.WriteLine("hi");
+                        continue;
+                    }
+                    */
                     //if locked, then add a new set of indexes to the list, containing the index of the current operator to group
                     if (locked)
                     {
@@ -97,13 +109,11 @@ namespace KolonLibrary
                     }
                     //if not locked, then change the second index of the group indexes to the latest operator found
                     else BracketOperatorIndex[BracketOperatorIndex.Count - 1][1] = i;
-                    continue;
                 }
                 //if theres a operator that isn't sub or add, or a bracket, set locked to true so that the group is finished
-                else if (match.TokenType == TokenType.OpeningParen || match.TokenType == TokenType.ClosingParen || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
+                else if (match.TokenType == TokenType.OpeningParen || match.TokenType == TokenType.ClosingParen || match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub)
                     locked = true;
             }
-
             //list of the indexes where the parentheses need to go to group the operators, and a bool to know if the the parenthese needs to be a opening parenthese, or a closing one
             List<(int, bool)> IndexInsertList = new();
             foreach (var index in BracketOperatorIndex)
@@ -111,7 +121,7 @@ namespace KolonLibrary
                 //check if there is already brackets around the group
                 if (index[0] > 1 && matches.Count - index[1] > 1 && matches[index[0] - 2].TokenType == TokenType.OpeningParen && matches[index[1] + 2].TokenType == TokenType.ClosingParen) continue;
                 int[] IndexInsert = new int[2];
-                //if the index before the first operator is a int value, then add the space to the IndexInsertList (gets added at the end)
+                //if the index before the first operator is a int value, then add the index to the IndexInsertList (gets added at the end)
                 if(matches[index[0] - 1].TokenType == TokenType.IntValue || matches[index[0] - 1].TokenType == TokenType.IdentRef)
                 {
                     IndexInsert[0] = index[0] - 1;
@@ -152,12 +162,13 @@ namespace KolonLibrary
                             if (depth == 0)
                             {
                                 IndexInsert[1] = i;
+                                break;
                             }
                         }
                         else if (match.TokenType == TokenType.OpeningParen) depth--;
                     }
                 }
-                
+
                 IndexInsertList.Add((IndexInsert[0], false));
                 IndexInsertList.Add((IndexInsert[1], true));
             }
@@ -265,8 +276,13 @@ namespace KolonLibrary
                         }
                         break;
                     case TokenType.Sub:
-                        if(Expression(matches.GetRange(1, matches.Count - 1), node, out _))
+                        Node NegativeExpression = new Node() { TokenMatch = new TokenMatch() { TokenType = TokenType.Mul, Value = "*", GroupingType = TokenType.Operator, IsMatch = true }, Parent = node};
+                        NegativeExpression.Children.Add(new Node() { TokenMatch = new TokenMatch() { TokenType = TokenType.IntValue, Value = "-1", IsMatch = true }, Parent = NegativeExpression });
+                        node.Children.Add(NegativeExpression);
+                        if (Expression(matches.GetRange(1, matches.Count - 1), NegativeExpression, out node))
+                        {
                             return true;
+                        }
                         break;
                     default:
                         return false;
@@ -306,6 +322,15 @@ namespace KolonLibrary
                     Console.WriteLine($"{child.TokenMatch.TokenType}, {child.TokenMatch.Value} parent: {TokenMatch.TokenType}, {TokenMatch.Value}");
                 child.ListChildInfo();
             }
+        }
+
+        public Node GetRootNode()
+        {
+            if (Parent == null)
+            {
+                return Parent.GetRootNode();
+            }
+            else return this;
         }
     }
 
