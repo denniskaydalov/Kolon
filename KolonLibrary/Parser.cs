@@ -9,69 +9,100 @@ namespace KolonLibrary
 {
     public class Rules
     {
-        private List<Statement> Statements = new();
-        private List<TokenMatch> TokenMatches;
+        private List<Statement> Statements;
+        private List<List<TokenMatch>> Matches;
 
-        public Rules(List<TokenMatch> TokenMatches)
+        public Rules(ref List<List<TokenMatch>> Matches, List<Statement> Statements)
         {
-            this.TokenMatches = TokenMatches;
+            this.Matches = Matches;
+            this.Statements = Statements;
         }
+
         #region verification
         public void VerifyMatches()
         {
-            switch(TokenMatches[0].TokenType)
+            for (int i = 0; i < Matches.Count; i++)
             {
-                case TokenType.Int or TokenType.Bool:
-                    if(TokenMatches[1].TokenType == TokenType.Ident)
-                    {
-                        if(TokenMatches[2].TokenType == TokenType.Equals)
+                List<TokenMatch>? TokenMatches = Matches[i];
+
+                if (TokenMatches.Count == 0) continue;
+                List<TokenMatch> TokenMatchesOptimized = new List<TokenMatch>();
+                TokenMatchesOptimized.AddRange(TokenMatches);
+
+                foreach (var match in TokenMatches)
+                {
+                    //simplify all the operators to one operator group
+                    if (match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
+                        TokenMatchesOptimized[TokenMatchesOptimized.IndexOf(match)].GroupingType = TokenType.Operator;
+                }
+
+                TokenMatches = TokenMatchesOptimized;
+
+                switch (TokenMatches[0].TokenType)
+                {
+                    case TokenType.Int or TokenType.Bool:
+                        if (TokenMatches[1].TokenType == TokenType.Ident)
                         {
-                            //start the AST with 3 nodes: Int > Ident > Equals
-                            Node VariableDeclareNode = new Node() { TokenMatch = TokenMatches[2] }; 
-                            VariableDeclareNode.Parent = new Node() { TokenMatch = TokenMatches[1] };
-                            VariableDeclareNode.Parent.Children.Add(VariableDeclareNode);
-                            VariableDeclareNode.Parent.Parent = new Node() { TokenMatch = TokenMatches[0] };
-                            VariableDeclareNode.Parent.Parent.Children.Add(VariableDeclareNode.Parent);
-                            if (TokenMatches[0].TokenType == TokenType.Int)
+                            if (TokenMatches[2].TokenType == TokenType.Equals)
                             {
-                                //sort the expression so it follows the rules of bedmas
-                                SetupOrder(TokenMatches.GetRange(3, TokenMatches.Count - 3), out TokenMatches);
-                                Console.WriteLine(Expression(TokenMatches, VariableDeclareNode, out VariableDeclareNode));
-                            }
-                            else
-                            {
-                                if (TokenMatches[3].TokenType == TokenType.BoolValue)
+                                //start the AST with 3 nodes: Int > Ident > Equals
+                                string name = TokenMatches[1].Value;
+                                Node VariableDeclareNode = new Node() { TokenMatch = TokenMatches[2] };
+                                VariableDeclareNode.Parent = new Node() { TokenMatch = TokenMatches[1] };
+                                VariableDeclareNode.Parent.Children.Add(VariableDeclareNode);
+                                VariableDeclareNode.Parent.Parent = new Node() { TokenMatch = TokenMatches[0] };
+                                VariableDeclareNode.Parent.Parent.Children.Add(VariableDeclareNode.Parent);
+                                if (TokenMatches[0].TokenType == TokenType.Int)
                                 {
-                                    Node BoolNode = new Node() { TokenMatch = TokenMatches[3], Parent = VariableDeclareNode };
-                                    VariableDeclareNode.Children.Add(BoolNode);
-                                    VariableDeclareNode = BoolNode;
-                                    Console.WriteLine("True");
+                                    //sort the expression so it follows the rules of bedmas
+                                    SetupOrder(TokenMatches.GetRange(3, TokenMatches.Count - 3), out TokenMatches);
+                                    Console.WriteLine(Expression(TokenMatches, VariableDeclareNode, out VariableDeclareNode));
                                 }
+                                else
+                                {
+                                    if (TokenMatches[3].TokenType == TokenType.BoolValue)
+                                    {
+                                        Node BoolNode = new Node() { TokenMatch = TokenMatches[3], Parent = VariableDeclareNode };
+                                        VariableDeclareNode.Children.Add(BoolNode);
+                                        VariableDeclareNode = BoolNode;
+                                        Console.WriteLine("True");
+                                    }
+                                }
+                                Statements.Add(new Variable() { StatementType = StatementType.Variable, Value = AST.ResolveExpressionValue(VariableDeclareNode.GetRootNode().Children[0].Children[0].Children[0]), VariableType = TokenType.Int, Name = name });
                             }
-                            VariableDeclareNode.ListInfo();
-                            var statement = new Statement();
-                            statement.ResolveExpressionValue(VariableDeclareNode.GetRootNode().Children[0]);
                         }
-                    }
-                    break;
-                case TokenType.IdentRef:
-                    if(TokenMatches[1].TokenType == TokenType.Equals)
-                    {
-                        Node VariableSetNode = new Node() { TokenMatch = TokenMatches[1] };
-                        VariableSetNode.Parent = new Node() { TokenMatch = TokenMatches[0] };
-                        VariableSetNode.Parent.Children.Add(VariableSetNode);
-                        SetupOrder(TokenMatches.GetRange(2, TokenMatches.Count - 2), out TokenMatches);
-                        Console.WriteLine(Expression(TokenMatches, VariableSetNode, out VariableSetNode));
-                        VariableSetNode.ListInfo();
-                    }
-                    break;
-                case TokenType.Print:
-                    Node PrintNode = new Node() { TokenMatch = TokenMatches[0] };
-                    SetupOrder(TokenMatches.GetRange(1, TokenMatches.Count - 1), out TokenMatches);
-                    Console.WriteLine(Expression(TokenMatches, PrintNode, out PrintNode));
-                    PrintNode.ListInfo();
-                    Statements.Add(new MethodCall(new List<Node> { PrintNode }, StatementType.Print));
-                    break;
+                        break;
+                    case TokenType.IdentRef:
+                        if (TokenMatches[1].TokenType == TokenType.Equals)
+                        {
+                            Node VariableSetNode = new Node() { TokenMatch = TokenMatches[1] };
+                            VariableSetNode.Parent = new Node() { TokenMatch = TokenMatches[0] };
+                            VariableSetNode.Parent.Children.Add(VariableSetNode);
+                            SetupOrder(TokenMatches.GetRange(2, TokenMatches.Count - 2), out TokenMatches);
+                            Console.WriteLine(Expression(TokenMatches, VariableSetNode, out VariableSetNode));
+                            VariableSetNode.ListInfo();
+                        }
+                        break;
+                    case TokenType.Ident:
+                        MethodCall method = new();
+                        int argumentIndex = 0;
+                        foreach (var match in TokenMatches)
+                        {
+                            if (match.TokenType != TokenType.Comma)
+                                try { method.Arguments[argumentIndex].Add(match); }
+                                catch (Exception)
+                                {
+                                    method.Arguments.Add(new List<TokenMatch>());
+                                    method.Arguments[argumentIndex].Add(match);
+                                }
+                            else argumentIndex++;
+                        }
+                        if (TokenMatches[0].Value == "print")
+                            method.StatementType = StatementType.Print;
+                        else method.StatementType = StatementType.CustomMethod;
+                        Statements.Add(method);
+                        break;
+                }
             }
         }
         #endregion verification
@@ -82,7 +113,7 @@ namespace KolonLibrary
         /// </summary>
         /// <param name="matches"></param>
         /// <param name="outMatches"></param>
-        void SetupOrder (List<TokenMatch> matches, out List<TokenMatch> outMatches)
+        public static void SetupOrder (List<TokenMatch> matches, out List<TokenMatch> outMatches)
         {
             outMatches = matches;
             //list of all indexes where the operators that need to be grouped are, to group the substraction and addition operators away from the multiplication and division operators
@@ -194,7 +225,7 @@ namespace KolonLibrary
         /// </summary>
         /// <param name="matches"></param>
         /// <returns></returns>
-        bool Expression(List<TokenMatch> matches, Node node, out Node outNode)
+        public static bool Expression(List<TokenMatch> matches, Node node, out Node outNode)
         {
             /*
             foreach (var match in matches)
@@ -291,7 +322,6 @@ namespace KolonLibrary
             return false;
         }
         #endregion expression check
-
     }
 
     public class Node
@@ -314,7 +344,7 @@ namespace KolonLibrary
             }
         }
 
-        public void ListChildInfo()
+        private void ListChildInfo()
         {
             foreach (var child in Children)
             {
@@ -326,7 +356,7 @@ namespace KolonLibrary
 
         public Node GetRootNode()
         {
-            if (Parent == null)
+            if (Parent != null)
             {
                 return Parent.GetRootNode();
             }
@@ -338,6 +368,7 @@ namespace KolonLibrary
     {
         //TODO : run a check somewhere to make sure that a line is not just an empty line, and actually contains tokens
         private List<List<TokenMatch>> TokenMatches = new List<List<TokenMatch>>();
+        private Runtime Runtime = Runtime.GetInstance();
 
         public Parser(List<List<TokenMatch>> TokenMatches)
         {
@@ -346,20 +377,9 @@ namespace KolonLibrary
 
         public void Parse()
         {
-            foreach (var list in TokenMatches)
-            {
-                if (list.Count == 0) continue;
-                List<TokenMatch> TokenMatchesOptimized = new List<TokenMatch>();
-                TokenMatchesOptimized.AddRange(list);
-                foreach (var match in list)
-                {
-                    //simplify all the operators to one operator group
-                    if (match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
-                        TokenMatchesOptimized[TokenMatchesOptimized.IndexOf(match)].GroupingType = TokenType.Operator;
-                }
-                Rules rules = new Rules(TokenMatchesOptimized);
-                rules.VerifyMatches();
-            }
+            Rules rules = new Rules(ref TokenMatches, Runtime.statements);
+            rules.VerifyMatches();
+            Runtime.Run();
         }
     }
 }

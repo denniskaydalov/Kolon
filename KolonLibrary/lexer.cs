@@ -13,7 +13,6 @@ namespace KolonLibrary
         Bool,
         Ident,
         IdentRef,
-        Print,
         DoubleEqual,
         IntValue,
         BoolValue,
@@ -28,7 +27,9 @@ namespace KolonLibrary
         ClosingParen,
         NotEqual,
         Bang,
-        Operator
+        Operator,
+        Comma,
+        Empty
     }
 
     public class Lexer
@@ -45,7 +46,7 @@ namespace KolonLibrary
             //add token definitions
             TokenDefinitions.Add(new TokenDef(TokenType.Int, "^(int) "));
             TokenDefinitions.Add(new TokenDef(TokenType.Bool, "^(bool) "));
-            TokenDefinitions.Add(new TokenDef(TokenType.Print, "^(print) "));
+            TokenDefinitions.Add(new TokenDef(TokenType.Comma, "^,"));
             TokenDefinitions.Add(new TokenDef(TokenType.DoubleEqual, "^(==)"));
             TokenDefinitions.Add(new TokenDef(TokenType.Ident, "^[a-zA-Z_][a-zA-Z0-9_]*"));
             TokenDefinitions.Add(new TokenDef(TokenType.IdentRef, @"^\$[a-zA-Z_][a-zA-Z0-9_]*"));

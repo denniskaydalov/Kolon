@@ -6,69 +6,94 @@ using System.Threading.Tasks;
 
 namespace KolonLibrary
 {
-    public class Statement 
+    public class AST
     {
-        public void ResolveExpressionValue(Node node)
+        public static TokenMatch ResolveExpressionValue(Node node)
         {
-            if(node.TokenMatch != null && (node.TokenMatch.GroupingType == TokenType.Operator || node.TokenMatch.TokenType == TokenType.IntValue))
+            if (node.TokenMatch != null && (node.TokenMatch.GroupingType == TokenType.Operator || node.TokenMatch.TokenType == TokenType.IntValue))
             {
-                Console.WriteLine(CalculateIntExpression(node));
+                try
+                {
+                    return new TokenMatch() { Value = CalculateIntExpression(node).ToString(), IsMatch = true, TokenType = TokenType.IntValue };
+                }
+                catch (Exception e) { Console.WriteLine(e.Message); }
             }
+            return new TokenMatch();
         }
 
-        private int CalculateIntExpression(Node node)
+        private static int CalculateIntExpression(Node node)
         {
-            if (node.TokenMatch != null && node.TokenMatch.GroupingType == TokenType.Operator)
+            if (node.TokenMatch != null)
             {
-                if (node.Children.Count == 2)
+                //Console.WriteLine(node.TokenMatch.TokenType);
+                if (node.TokenMatch.GroupingType == TokenType.Operator)
                 {
-                    int leftNumber, rightNumber;
-                    leftNumber = CalculateIntExpression(node.Children[0]);
-                    rightNumber = CalculateIntExpression(node.Children[1]);
-
-                    switch (node.TokenMatch.TokenType)
+                    if (node.Children.Count == 2)
                     {
-                        case TokenType.Add:
-                            return leftNumber + rightNumber;
-                        case TokenType.Sub:
-                            return leftNumber - rightNumber;
-                        case TokenType.Div:
-                            return leftNumber / rightNumber;
-                        case TokenType.Mul:
-                            return leftNumber * rightNumber;
+                        int leftNumber, rightNumber;
+                        leftNumber = CalculateIntExpression(node.Children[0]);
+                        rightNumber = CalculateIntExpression(node.Children[1]);
+
+                        switch (node.TokenMatch.TokenType)
+                        {
+                            case TokenType.Add:
+                                return leftNumber + rightNumber;
+                            case TokenType.Sub:
+                                return leftNumber - rightNumber;
+                            case TokenType.Div:
+                                return leftNumber / rightNumber;
+                            case TokenType.Mul:
+                                return leftNumber * rightNumber;
+                        }
                     }
                 }
-            }
-            else if (node.TokenMatch != null && node.TokenMatch.TokenType == TokenType.IntValue)
-            {
-                return Convert.ToInt32(node.TokenMatch.Value);
+                else if (node.TokenMatch.TokenType == TokenType.IntValue)
+                {
+                    return Convert.ToInt32(node.TokenMatch.Value);
+                }
+                else if (node.TokenMatch.TokenType == TokenType.IdentRef)
+                {
+                    Console.WriteLine("hi");
+                    Runtime runtime = Runtime.GetInstance();
+                    List<string> RuntimeVariableNames = (from variables in runtime.variables select variables.Name).ToList();
+                    if(RuntimeVariableNames.Contains(node.TokenMatch.Value))
+                    {
+                        try
+                        {
+                            return int.Parse(runtime.variables[RuntimeVariableNames.IndexOf(node.TokenMatch.Value)].Value.Value);
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e.Message);
+                        }
+                    }
+                }
             }
             return 0;
         }
     }
 
-    public class MethodCall : Statement
-    { 
-        List<Node> Arguments = new();
-        StatementType? Type;
+    public class Statement { }
 
-        public MethodCall(List<Node> Arguments, StatementType Type)
-        {
-            this.Arguments = Arguments;
-            this.Type = Type;
-        }
-
-        public void ResolveArgumentValues()
-        {
-            foreach (var Argument in Arguments)
-            {
-                ResolveExpressionValue(Argument.GetRootNode());
-            }
-        }
+    public class Variable : Statement
+    {
+        public TokenType VariableType { get; set; }
+        public StatementType StatementType { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public TokenMatch Value { get; set; } = new();
+        public Node ValueNode { get; set; } = new();
     }
+
+    public class MethodCall : Statement
+    {
+        public List<List<TokenMatch>> Arguments { get; set; } = new();
+        public StatementType StatementType { get; set; }
+    }
+
 
     public enum StatementType
     {
+        Variable,
         Print,
         CustomMethod,
     }
