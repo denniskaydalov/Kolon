@@ -10,7 +10,7 @@ namespace KolonLibrary
     {
         public static TokenMatch ResolveExpressionValue(Node node)
         {
-            if (node.TokenMatch != null && (node.TokenMatch.GroupingType == TokenType.Operator || node.TokenMatch.TokenType == TokenType.IntValue))
+            if (node.TokenMatch != null && (node.TokenMatch.GroupingType == TokenType.Operator || node.TokenMatch.TokenType == TokenType.IntValue || node.TokenMatch.TokenType == TokenType.IdentRef))
             {
                 try
                 {
@@ -53,14 +53,13 @@ namespace KolonLibrary
                 }
                 else if (node.TokenMatch.TokenType == TokenType.IdentRef)
                 {
-                    Console.WriteLine("hi");
                     Runtime runtime = Runtime.GetInstance();
                     List<string> RuntimeVariableNames = (from variables in runtime.variables select variables.Name).ToList();
-                    if(RuntimeVariableNames.Contains(node.TokenMatch.Value))
+                    if(RuntimeVariableNames.Contains(node.TokenMatch.Value.Substring(1)))
                     {
                         try
                         {
-                            return int.Parse(runtime.variables[RuntimeVariableNames.IndexOf(node.TokenMatch.Value)].Value.Value);
+                            return int.Parse(runtime.variables[RuntimeVariableNames.IndexOf(node.TokenMatch.Value.Substring(1))].Value.Value);
                         }
                         catch (Exception e)
                         {
@@ -89,7 +88,6 @@ namespace KolonLibrary
         public List<List<TokenMatch>> Arguments { get; set; } = new();
         public StatementType StatementType { get; set; }
     }
-
 
     public enum StatementType
     {

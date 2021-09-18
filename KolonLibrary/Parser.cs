@@ -56,7 +56,7 @@ namespace KolonLibrary
                                 {
                                     //sort the expression so it follows the rules of bedmas
                                     SetupOrder(TokenMatches.GetRange(3, TokenMatches.Count - 3), out TokenMatches);
-                                    Console.WriteLine(Expression(TokenMatches, VariableDeclareNode, out VariableDeclareNode));
+                                    Expression(TokenMatches, VariableDeclareNode, out VariableDeclareNode) ;
                                 }
                                 else
                                 {
@@ -68,7 +68,8 @@ namespace KolonLibrary
                                         Console.WriteLine("True");
                                     }
                                 }
-                                Statements.Add(new Variable() { StatementType = StatementType.Variable, Value = AST.ResolveExpressionValue(VariableDeclareNode.GetRootNode().Children[0].Children[0].Children[0]), VariableType = TokenType.Int, Name = name });
+                                //Statements.Add(new Variable() { StatementType = StatementType.Variable, Value = AST.ResolveExpressionValue(VariableDeclareNode.GetRootNode().Children[0].Children[0].Children[0]), VariableType = TokenType.Int, Name = name });
+                                Statements.Add(new Variable() { StatementType = StatementType.Variable, Value = new TokenMatch(), VariableType = TokenType.Int, Name = name, ValueNode = VariableDeclareNode.GetRootNode().Children[0].Children[0].Children[0] });
                             }
                         }
                         break;

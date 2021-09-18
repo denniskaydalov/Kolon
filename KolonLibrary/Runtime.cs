@@ -34,7 +34,13 @@ namespace KolonLibrary
             {
                 if (statement is Variable)
                 {
-                    variables.Add((Variable) statement);
+#pragma warning disable CS8600
+                    Variable _variable = statement as Variable;
+#pragma warning restore CS8600
+#pragma warning disable CS8602
+                    _variable.Value = AST.ResolveExpressionValue(_variable.ValueNode);
+#pragma warning restore CS8602
+                    variables.Add(_variable);
                 }
                 else if(statement is MethodCall)
                 {
@@ -62,11 +68,11 @@ namespace KolonLibrary
                             }
                             break;
                     }
+                    foreach (var variable in variables)
+                    {
+                        Console.WriteLine($"{variable.Name}, {variable.Value.Value}");
+                    }
                 }
-            }
-            foreach (var variable in variables)
-            {
-                Console.WriteLine($"{variable.Name}, {variable.Value.Value}");
             }
         }
     }
