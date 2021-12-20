@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace KolonLibrary
 {
@@ -16,53 +17,63 @@ namespace KolonLibrary
         DoubleEqual,
         IntValue,
         BoolValue,
+        PlusEquals,
+        Increment,
+        MinusEquals,
+        Decrement,
         Equals,
         Add,
         Sub,
         Div,
         Mul,
-        GreaterThan,
-        LesserThan,
+        Mod,
         OpeningParen,
         ClosingParen,
-        NotEqual,
-        Bang,
         Operator,
         Comma,
-        Empty
+        OpeningBrace,  
+        ClosingBrace,  
+        Empty, //for empty token match instances that need a tokentype
+        Custom, //for custom data types
+        Any,
+        Function,
     }
 
     public class Lexer
     {
         //string for the lexer to tokenize
-        private string[] InputString;
+        private string[] InputStrings;
         //list of all token definitions, containing the TokenType and the regex pattern for the token type
         public List<TokenDef> TokenDefinitions = new List<TokenDef>();
 
-        public Lexer(string[] InputString)
+        public Lexer(string[] InputStrings)
         {
-            this.InputString = InputString;
+            this.InputStrings = InputStrings;
 
             //add token definitions
             TokenDefinitions.Add(new TokenDef(TokenType.Int, "^(int) "));
             TokenDefinitions.Add(new TokenDef(TokenType.Bool, "^(bool) "));
+            TokenDefinitions.Add(new TokenDef(TokenType.Function, "^(function) "));
             TokenDefinitions.Add(new TokenDef(TokenType.Comma, "^,"));
             TokenDefinitions.Add(new TokenDef(TokenType.DoubleEqual, "^(==)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.BoolValue, @"^(true)|^(false)|^(True)|^(False)"));
             TokenDefinitions.Add(new TokenDef(TokenType.Ident, "^[a-zA-Z_][a-zA-Z0-9_]*"));
             TokenDefinitions.Add(new TokenDef(TokenType.IdentRef, @"^\$[a-zA-Z_][a-zA-Z0-9_]*"));
             TokenDefinitions.Add(new TokenDef(TokenType.IntValue, @"^-?\d+"));
-            TokenDefinitions.Add(new TokenDef(TokenType.BoolValue, @"^(true)|^(false)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.PlusEquals, @"^(\+=)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Increment, @"^(\+\+)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.MinusEquals, @"^(-=)"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Decrement, @"^(--)"));
             TokenDefinitions.Add(new TokenDef(TokenType.Equals, "^="));
             TokenDefinitions.Add(new TokenDef(TokenType.Add, @"^\+"));
             TokenDefinitions.Add(new TokenDef(TokenType.Sub, "^-"));
             TokenDefinitions.Add(new TokenDef(TokenType.Div, @"^\/"));
             TokenDefinitions.Add(new TokenDef(TokenType.Mul, @"^\*"));
-            TokenDefinitions.Add(new TokenDef(TokenType.GreaterThan, "^>"));
-            TokenDefinitions.Add(new TokenDef(TokenType.LesserThan, "^<"));
+            TokenDefinitions.Add(new TokenDef(TokenType.Mod, @"^\%"));
             TokenDefinitions.Add(new TokenDef(TokenType.OpeningParen, @"^\("));
             TokenDefinitions.Add(new TokenDef(TokenType.ClosingParen, @"^\)"));
-            TokenDefinitions.Add(new TokenDef(TokenType.NotEqual, @"^(!=)"));
-            TokenDefinitions.Add(new TokenDef(TokenType.NotEqual, @"^!"));
+            TokenDefinitions.Add(new TokenDef(TokenType.OpeningBrace, @"^\{"));
+            TokenDefinitions.Add(new TokenDef(TokenType.ClosingBrace, @"^\}"));
         }
 
         /// <summary>
@@ -71,12 +82,14 @@ namespace KolonLibrary
         public void Tokenize()
         {
             //token matches, nested list so that we automatically know each line break
-            List<List<TokenMatch>> TokenMatchesList = new List<List<TokenMatch>>();
+            List<ListOfTokens> TokenMatchesList = new();
 
-            foreach (var InputString in InputString)
+            bool isFunction = false;
+
+            foreach (var InputString in InputStrings)
             {
                 //tokens that have been matched
-                List<TokenMatch> TokenMatches = new List<TokenMatch>();
+                ListOfTokens TokenMatches = new();
 
                 //loop through the input string trying to find a regex match, when found, add the match to the TokenMatchesList
                 for (int i = 0; i < InputString.Length; i++)
@@ -89,15 +102,32 @@ namespace KolonLibrary
                             var TokenMatch = token.Match(InputString[i..]);
                             if (TokenMatch.IsMatch)
                             {
-                                TokenMatches.Add(TokenMatch);
-                                //add the matche's length to it so we don't have to loop through extra characters that we've already found a match for
+                                if(TokenMatch._TokenType == TokenType.OpeningBrace)
+                                {
+                                    isFunction = true;
+                                }
+                                else if(TokenMatch._TokenType == TokenType.ClosingBrace)
+                                {
+                                    TokenMatches.isBlock = true;
+                                    isFunction = false;
+                                }
+                                else if(isFunction == true)
+                                    TokenMatches.isBlock = true;
+                                TokenMatches.matches.Add(TokenMatch);
+                                //add the match's length to it so we don't have to loop through extra characters that we've already found a match for
                                 i += TokenMatch.Value.Length - 1;
                                 break;
                             }
                         }
                     }
                 }
+
                 TokenMatchesList.Add(TokenMatches);
+
+                for(int i = 0; i < TokenMatches.matches.Count; i++)
+                {
+                    var match = TokenMatches.matches[i];
+                }
             }
 
             Parser parser = new Parser(TokenMatchesList);
@@ -124,7 +154,7 @@ namespace KolonLibrary
             {
                 return new TokenMatch()
                 {
-                    TokenType = TokenType,
+                    _TokenType = TokenType,
                     //conditional statement to only return a value if the Token has a value
                     Value = match.Value,
                     IsMatch = true
@@ -136,9 +166,16 @@ namespace KolonLibrary
 
     public class TokenMatch
     {
-        public TokenType TokenType { get; set; }
+        public TokenType _TokenType { get; set; }
         public string Value { get; set; } = string.Empty;
         public bool IsMatch { get; set; }
         public TokenType? GroupingType { get; set; }
+    }
+
+    public class ListOfTokens
+    {
+        public List<TokenMatch> matches { get; set; }= new();
+        public bool isBlock { get; set; } = false;
+        public StatementType type { get; set; }
     }
 }

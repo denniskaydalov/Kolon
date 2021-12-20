@@ -1,95 +1,156 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace KolonLibrary
 {
     public class Rules
     {
         private List<Statement> Statements;
-        private List<List<TokenMatch>> Matches;
+        private List<Method> Blocks;
+        private List<ListOfTokens> Matches;
 
-        public Rules(ref List<List<TokenMatch>> Matches, List<Statement> Statements)
+        public Rules(ref List<ListOfTokens> Matches, List<Statement> Statements, List<Method> Blocks)
         {
             this.Matches = Matches;
             this.Statements = Statements;
+            this.Blocks = Blocks;
         }
 
         #region verification
         public void VerifyMatches()
         {
+            bool isBlock = false;
+            Blocks.Add(new Method());
             for (int i = 0; i < Matches.Count; i++)
             {
-                List<TokenMatch>? TokenMatches = Matches[i];
+                List<TokenMatch>? TokenMatches = Matches[i].matches;
 
                 if (TokenMatches.Count == 0) continue;
+                isBlock = Matches[i].isBlock;
+                if(Matches[i].isBlock)
+                    isBlock = true;
+                else
+                {
+                    isBlock = false;
+                    Blocks.Add(new Method());
+                }
                 List<TokenMatch> TokenMatchesOptimized = new List<TokenMatch>();
                 TokenMatchesOptimized.AddRange(TokenMatches);
 
                 foreach (var match in TokenMatches)
                 {
                     //simplify all the operators to one operator group
-                    if (match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub || match.TokenType == TokenType.Mul || match.TokenType == TokenType.Div)
+                    if (match._TokenType == TokenType.Add || match._TokenType == TokenType.Sub || match._TokenType == TokenType.Mul || match._TokenType == TokenType.Div || match._TokenType == TokenType.Mod)
                         TokenMatchesOptimized[TokenMatchesOptimized.IndexOf(match)].GroupingType = TokenType.Operator;
                 }
 
                 TokenMatches = TokenMatchesOptimized;
 
-                switch (TokenMatches[0].TokenType)
+                switch (TokenMatches[0]._TokenType)
                 {
                     case TokenType.Int or TokenType.Bool:
-                        if (TokenMatches[1].TokenType == TokenType.Ident)
+                        if (TokenMatches[1]._TokenType == TokenType.Ident)
                         {
-                            if (TokenMatches[2].TokenType == TokenType.Equals)
+                            if (TokenMatches[2]._TokenType == TokenType.Equals)
                             {
-                                //start the AST with 3 nodes: Int > Ident > Equals
                                 string name = TokenMatches[1].Value;
-                                Node VariableDeclareNode = new Node() { TokenMatch = TokenMatches[2] };
-                                VariableDeclareNode.Parent = new Node() { TokenMatch = TokenMatches[1] };
-                                VariableDeclareNode.Parent.Children.Add(VariableDeclareNode);
-                                VariableDeclareNode.Parent.Parent = new Node() { TokenMatch = TokenMatches[0] };
-                                VariableDeclareNode.Parent.Parent.Children.Add(VariableDeclareNode.Parent);
-                                if (TokenMatches[0].TokenType == TokenType.Int)
+                                if (TokenMatches[0]._TokenType == TokenType.Int)
                                 {
-                                    //sort the expression so it follows the rules of bedmas
-                                    SetupOrder(TokenMatches.GetRange(3, TokenMatches.Count - 3), out TokenMatches);
-                                    Expression(TokenMatches, VariableDeclareNode, out VariableDeclareNode) ;
-                                }
-                                else
-                                {
-                                    if (TokenMatches[3].TokenType == TokenType.BoolValue)
+                                    //add the variable to the list of statements
+                                    if(!isBlock)
+                                        Statements.Add(new VariableDeclare() { StatementType = StatementType.Variable, Value = new TokenMatch(), VariableType = TokenType.Int, Name = name, ValueMatch = TokenMatches.GetRange(3, TokenMatches.Count - 3)});
+                                    else
                                     {
-                                        Node BoolNode = new Node() { TokenMatch = TokenMatches[3], Parent = VariableDeclareNode };
-                                        VariableDeclareNode.Children.Add(BoolNode);
-                                        VariableDeclareNode = BoolNode;
-                                        Console.WriteLine("True");
+#pragma warning disable CS8600
+                                        Method methodRef = Blocks[Blocks.Count - 1];
+#pragma warning restore CS8600
+#pragma warning disable CS8602
+                                        methodRef.MethodStatements.Add(new VariableDeclare() { StatementType = StatementType.Variable, Value = new TokenMatch(), VariableType = TokenType.Int, Name = name, ValueMatch = TokenMatches.GetRange(3, TokenMatches.Count - 3) });
+#pragma warning restore CS8602
                                     }
                                 }
-                                //Statements.Add(new Variable() { StatementType = StatementType.Variable, Value = AST.ResolveExpressionValue(VariableDeclareNode.GetRootNode().Children[0].Children[0].Children[0]), VariableType = TokenType.Int, Name = name });
-                                Statements.Add(new Variable() { StatementType = StatementType.Variable, Value = new TokenMatch(), VariableType = TokenType.Int, Name = name, ValueNode = VariableDeclareNode.GetRootNode().Children[0].Children[0].Children[0] });
+                                else if (TokenMatches[0]._TokenType == TokenType.Bool)
+                                {
+                                    if(!isBlock)
+                                        Statements.Add(new VariableDeclare() { StatementType = StatementType.Variable, Value = new TokenMatch(), VariableType = TokenType.Bool, Name = name, ValueMatch = TokenMatches.GetRange(3, TokenMatches.Count - 3)});
+
+                                    else
+                                    {
+#pragma warning disable CS8600
+                                        Method methodRef = Blocks[Blocks.Count - 1];
+#pragma warning restore CS8600
+#pragma warning disable CS8602
+                                        methodRef.MethodStatements.Add(new VariableDeclare() { StatementType = StatementType.Variable, Value = new TokenMatch(), VariableType = TokenType.Bool, Name = name, ValueMatch = TokenMatches.GetRange(3, TokenMatches.Count - 3)});
+#pragma warning restore CS8602
+                                    }
+                                }
                             }
                         }
                         break;
                     case TokenType.IdentRef:
-                        if (TokenMatches[1].TokenType == TokenType.Equals)
+                        if (TokenMatches[1]._TokenType == TokenType.Equals || TokenMatches[1]._TokenType == TokenType.PlusEquals || TokenMatches[1]._TokenType == TokenType.MinusEquals || TokenMatches[1]._TokenType == TokenType.Decrement || TokenMatches[1]._TokenType == TokenType.Increment)
                         {
-                            Node VariableSetNode = new Node() { TokenMatch = TokenMatches[1] };
-                            VariableSetNode.Parent = new Node() { TokenMatch = TokenMatches[0] };
-                            VariableSetNode.Parent.Children.Add(VariableSetNode);
-                            SetupOrder(TokenMatches.GetRange(2, TokenMatches.Count - 2), out TokenMatches);
-                            Console.WriteLine(Expression(TokenMatches, VariableSetNode, out VariableSetNode));
-                            VariableSetNode.ListInfo();
+                            string name = TokenMatches[0].Value[1..];
+                            if (!isBlock)
+                            {
+                                if (TokenMatches[1]._TokenType == TokenType.Increment)
+                                    Statements.Add(new VariableChange() { Name = name, ValueMatch = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Add, Value = "+", GroupingType = TokenType.Operator }, new TokenMatch() { _TokenType = TokenType.IntValue, Value = "1" } } });
+                                else if (TokenMatches[1]._TokenType == TokenType.Decrement)
+                                    Statements.Add(new VariableChange() { Name = name, ValueMatch = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Sub, Value = "-", GroupingType = TokenType.Operator }, new TokenMatch() { _TokenType = TokenType.IntValue, Value = "1" } } });
+                                else if (TokenMatches[1]._TokenType == TokenType.PlusEquals)
+                                {
+                                    List<TokenMatch> _match = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Add, Value = "-", GroupingType = TokenType.Operator } };
+                                    _match.AddRange(TokenMatches.GetRange(2, TokenMatches.Count - 2));
+
+                                    Statements.Add(new VariableChange() { Name = name, ValueMatch = _match} );
+                                }
+                                else if (TokenMatches[1]._TokenType == TokenType.MinusEquals)
+                                {
+                                    List<TokenMatch> _match = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Sub, Value = "-", GroupingType = TokenType.Operator } };
+                                    _match.AddRange(TokenMatches.GetRange(2, TokenMatches.Count - 2));
+
+                                    Statements.Add(new VariableChange() { Name = name, ValueMatch = _match} );
+                                }
+                                else Statements.Add(new VariableChange() { Name = name, ValueMatch = TokenMatches.GetRange(2, TokenMatches.Count - 2) });
+                            }
+
+                            else
+                            {
+#pragma warning disable CS8600
+                                Method methodRef = Blocks[Blocks.Count - 1];
+#pragma warning restore CS8600
+#pragma warning disable CS8602
+                                if (TokenMatches[1]._TokenType == TokenType.Increment)
+                                    methodRef.MethodStatements.Add(new VariableChange() { Name = name, ValueMatch = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Add, Value = "+", GroupingType = TokenType.Operator }, new TokenMatch() { _TokenType = TokenType.IntValue, Value = "1" } } });
+                                else if (TokenMatches[1]._TokenType == TokenType.Decrement)
+                                    methodRef.MethodStatements.Add(new VariableChange() { Name = name, ValueMatch = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Sub, Value = "-", GroupingType = TokenType.Operator }, new TokenMatch() { _TokenType = TokenType.IntValue, Value = "1" } } });
+                                else if (TokenMatches[1]._TokenType == TokenType.PlusEquals)
+                                {
+                                    List<TokenMatch> _match = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Add, Value = "-", GroupingType = TokenType.Operator } };
+                                    _match.AddRange(TokenMatches.GetRange(2, TokenMatches.Count - 2));
+
+                                    methodRef.MethodStatements.Add(new VariableChange() { Name = name, ValueMatch = _match });
+                                }
+                                else if (TokenMatches[1]._TokenType == TokenType.MinusEquals)
+                                {
+                                    List<TokenMatch> _match = new List<TokenMatch> { new TokenMatch() { _TokenType = TokenType.IdentRef, Value = $"${name}" }, new TokenMatch() { _TokenType = TokenType.Sub, Value = "-", GroupingType = TokenType.Operator } };
+                                    _match.AddRange(TokenMatches.GetRange(2, TokenMatches.Count - 2));
+
+                                    methodRef.MethodStatements.Add(new VariableChange() { Name = name, ValueMatch = _match });
+                                }
+                                else methodRef.MethodStatements.Add(new VariableChange() { Name = name, ValueMatch = TokenMatches.GetRange(2, TokenMatches.Count - 2) });
+#pragma warning restore CS8602
+                            }
                         }
                         break;
                     case TokenType.Ident:
                         MethodCall method = new();
+                        method.name = TokenMatches[0].Value;
                         int argumentIndex = 0;
-                        foreach (var match in TokenMatches)
+                        //gather all argument tokens into a list, seperating each argument 
+                        foreach (var match in TokenMatches.GetRange(1, TokenMatches.Count - 1))
                         {
-                            if (match.TokenType != TokenType.Comma)
+                            if (match._TokenType != TokenType.Comma)
                                 try { method.Arguments[argumentIndex].Add(match); }
                                 catch (Exception)
                                 {
@@ -101,8 +162,29 @@ namespace KolonLibrary
                         if (TokenMatches[0].Value == "print")
                             method.StatementType = StatementType.Print;
                         else method.StatementType = StatementType.CustomMethod;
-                        Statements.Add(method);
+                        if(!isBlock)
+                            Statements.Add(method);
+                        else
+                        {
+#pragma warning disable CS8600
+                            Method methodRef = Blocks[Blocks.Count - 1];
+#pragma warning restore CS8600
+#pragma warning disable CS8602
+                            methodRef.MethodStatements.Add(method);
+#pragma warning restore CS8602
+                        }
                         break;
+                    case TokenType.Function:
+                        if (TokenMatches[1]._TokenType == TokenType.Ident)
+                        {
+                            if(TokenMatches[2]._TokenType == TokenType.OpeningParen && TokenMatches[3]._TokenType == TokenType.ClosingParen)
+                            {     
+                                isBlock = true;
+                                Blocks.Add(new Method(){ name = TokenMatches[1].Value});
+                            }
+                        }
+                        break;
+
                 }
             }
         }
@@ -124,15 +206,8 @@ namespace KolonLibrary
             for (int i = 0; i < matches.Count; i++)
             {
                 TokenMatch? match = matches[i];
-                if(match.TokenType == TokenType.Div || match.TokenType == TokenType.Mul)
+                if(match._TokenType == TokenType.Div || match._TokenType == TokenType.Mul)
                 {
-                    /*
-                    if (match.TokenType == TokenType.Sub && ((i == 0 || matches[i - 1].GroupingType == TokenType.Operator || matches[i - 1].TokenType == TokenType.OpeningParen) && (matches[i + 1].TokenType != TokenType.Operator)))
-                    {
-                        //Console.WriteLine("hi");
-                        continue;
-                    }
-                    */
                     //if locked, then add a new set of indexes to the list, containing the index of the current operator to group
                     if (locked)
                     {
@@ -143,7 +218,7 @@ namespace KolonLibrary
                     else BracketOperatorIndex[BracketOperatorIndex.Count - 1][1] = i;
                 }
                 //if theres a operator that isn't sub or add, or a bracket, set locked to true so that the group is finished
-                else if (match.TokenType == TokenType.OpeningParen || match.TokenType == TokenType.ClosingParen || match.TokenType == TokenType.Add || match.TokenType == TokenType.Sub)
+                else if (match._TokenType == TokenType.OpeningParen || match._TokenType == TokenType.ClosingParen || match._TokenType == TokenType.Add || match._TokenType == TokenType.Sub)
                     locked = true;
             }
             //list of the indexes where the parentheses need to go to group the operators, and a bool to know if the the parenthese needs to be a opening parenthese, or a closing one
@@ -151,21 +226,21 @@ namespace KolonLibrary
             foreach (var index in BracketOperatorIndex)
             {
                 //check if there is already brackets around the group
-                if (index[0] > 1 && matches.Count - index[1] > 1 && matches[index[0] - 2].TokenType == TokenType.OpeningParen && matches[index[1] + 2].TokenType == TokenType.ClosingParen) continue;
+                if (index[0] > 1 && matches.Count - index[1] > 1 && matches[index[0] - 2]._TokenType == TokenType.OpeningParen && matches[index[1] + 2]._TokenType == TokenType.ClosingParen) continue;
                 int[] IndexInsert = new int[2];
                 //if the index before the first operator is a int value, then add the index to the IndexInsertList (gets added at the end)
-                if(matches[index[0] - 1].TokenType == TokenType.IntValue || matches[index[0] - 1].TokenType == TokenType.IdentRef)
+                if(matches[index[0] - 1]._TokenType == TokenType.IntValue || matches[index[0] - 1]._TokenType == TokenType.IdentRef)
                 {
                     IndexInsert[0] = index[0] - 1;
                 }
                 //if the index before the first operator is a closing bracket, then check where is the matching opening bracket, and add the index before that to the IndexInsertList (gets added at the end)
-                else if (matches[index[0] - 1].TokenType == TokenType.ClosingParen)
+                else if (matches[index[0] - 1]._TokenType == TokenType.ClosingParen)
                 {
                     int depth = 0;
                     for (int i = index[0]; i != 0; i--)
                     {
                         TokenMatch? match = matches[i];
-                        if (match.TokenType == TokenType.OpeningParen)
+                        if (match._TokenType == TokenType.OpeningParen)
                         {
                             depth--;
                             if (depth == 0)
@@ -173,22 +248,22 @@ namespace KolonLibrary
                                 IndexInsert[0] = i - 1;
                             }
                         }
-                        else if (match.TokenType == TokenType.ClosingParen) depth++;
+                        else if (match._TokenType == TokenType.ClosingParen) depth++;
                     }
                 }
 
                 //same as the check before, but reversed for the second operator (it could be the same operator as the first operator, as not all expressions have more than one operator)
-                if(matches[index[1] + 1].TokenType == TokenType.IntValue || matches[index[1] + 1].TokenType  == TokenType.IdentRef)
+                if(matches[index[1] + 1]._TokenType == TokenType.IntValue || matches[index[1] + 1]._TokenType  == TokenType.IdentRef)
                 {
                     IndexInsert[1] = index[1] + 2;
                 }
-                else if (matches[index[1] + 1].TokenType == TokenType.OpeningParen)
+                else if (matches[index[1] + 1]._TokenType == TokenType.OpeningParen)
                 {
                     int depth = 0;
                     for (int i = index[1]; i < matches.Count; i++)
                     {
                         TokenMatch? match = matches[i];
-                        if (match.TokenType == TokenType.ClosingParen)
+                        if (match._TokenType == TokenType.ClosingParen)
                         {
                             depth++;
                             if (depth == 0)
@@ -197,7 +272,7 @@ namespace KolonLibrary
                                 break;
                             }
                         }
-                        else if (match.TokenType == TokenType.OpeningParen) depth--;
+                        else if (match._TokenType == TokenType.OpeningParen) depth--;
                     }
                 }
 
@@ -213,9 +288,9 @@ namespace KolonLibrary
             {
                 (int, bool) index = IndexInsertList[i];
                 if (index.Item2)
-                    matches.Insert(index.Item1, new TokenMatch() { TokenType = TokenType.ClosingParen, Value = ")", IsMatch = true });
+                    matches.Insert(index.Item1, new TokenMatch() { _TokenType = TokenType.ClosingParen, Value = ")", IsMatch = true });
                 else
-                    matches.Insert(index.Item1, new TokenMatch() { TokenType = TokenType.OpeningParen, Value = "(", IsMatch = true });
+                    matches.Insert(index.Item1, new TokenMatch() { _TokenType = TokenType.OpeningParen, Value = "(", IsMatch = true });
             }
         }
         #endregion bedmas fix
@@ -228,26 +303,19 @@ namespace KolonLibrary
         /// <returns></returns>
         public static bool Expression(List<TokenMatch> matches, Node node, out Node outNode)
         {
-            /*
-            foreach (var match in matches)
-            {
-                Console.Write($"{match.TokenType}, ");
-            }
-            Console.WriteLine("\nExpresion method called\n");
-            */
             outNode = node;
             if (matches.Count > 0)
             {
                 //switch case for the first token, to check whether the function should validate a binary expression, or a grouping expression, etc..
-                switch (matches[0].TokenType)
+                switch (matches[0]._TokenType)
                 {
                     case TokenType.IntValue or TokenType.IdentRef:
                         try
                         {
                             if (matches[1].GroupingType == TokenType.Operator)
                             {
-                                Node BinaryExpressionNode = new Node() { TokenMatch = matches[1], Parent = node };
-                                BinaryExpressionNode.Children.Add(new Node() { TokenMatch = matches[0], Parent = BinaryExpressionNode });
+                                Node BinaryExpressionNode = new Node() { _TokenMatch = matches[1], Parent = node };
+                                BinaryExpressionNode.Children.Add(new Node() { _TokenMatch = matches[0], Parent = BinaryExpressionNode });
                                 node.Children.Add(BinaryExpressionNode);
                                 //check if the expression matches: number - operator - expression
                                 if (Expression(matches.GetRange(2, matches.Count - 2), BinaryExpressionNode, out node))
@@ -260,7 +328,7 @@ namespace KolonLibrary
                         }
                         catch (ArgumentOutOfRangeException) 
                         {
-                            Node LiteralExpressionNode = new Node() { TokenMatch = matches[0], Parent = node };
+                            Node LiteralExpressionNode = new Node() { _TokenMatch = matches[0], Parent = node };
                             node.Children.Add(LiteralExpressionNode);
                             return true; 
                         }
@@ -271,7 +339,7 @@ namespace KolonLibrary
                         for (int i = 0; i < matches.Count; i++)
                         {
                             TokenMatch? match = matches[i];
-                            if (match.TokenType == TokenType.ClosingParen)
+                            if (match._TokenType == TokenType.ClosingParen)
                             {
                                 ParenDepth--;
                                 if (ParenDepth == 0)
@@ -281,14 +349,14 @@ namespace KolonLibrary
                                     break;
                                 }
                             }
-                            else if (match.TokenType == TokenType.OpeningParen) ParenDepth++;
+                            else if (match._TokenType == TokenType.OpeningParen) ParenDepth++;
                         }
                         //check if the expresion between the parentheses is valid
                         try
                         {
                             if (matches[ParenDepth + 1].GroupingType == TokenType.Operator)
                             {
-                                Node GroupingExpressionNode = new Node() { TokenMatch = matches[ParenDepth + 1], Parent = node };
+                                Node GroupingExpressionNode = new Node() { _TokenMatch = matches[ParenDepth + 1], Parent = node };
                                 node.Children.Add(GroupingExpressionNode);
                                 if (Expression(matches.GetRange(1, ParenDepth - 1), GroupingExpressionNode, out node))
                                 {    
@@ -308,8 +376,8 @@ namespace KolonLibrary
                         }
                         break;
                     case TokenType.Sub:
-                        Node NegativeExpression = new Node() { TokenMatch = new TokenMatch() { TokenType = TokenType.Mul, Value = "*", GroupingType = TokenType.Operator, IsMatch = true }, Parent = node};
-                        NegativeExpression.Children.Add(new Node() { TokenMatch = new TokenMatch() { TokenType = TokenType.IntValue, Value = "-1", IsMatch = true }, Parent = NegativeExpression });
+                        Node NegativeExpression = new Node() { _TokenMatch = new TokenMatch() { _TokenType = TokenType.Mul, Value = "*", GroupingType = TokenType.Operator, IsMatch = true }, Parent = node};
+                        NegativeExpression.Children.Add(new Node() { _TokenMatch = new TokenMatch() { _TokenType = TokenType.IntValue, Value = "-1", IsMatch = true }, Parent = NegativeExpression });
                         node.Children.Add(NegativeExpression);
                         if (Expression(matches.GetRange(1, matches.Count - 1), NegativeExpression, out node))
                         {
@@ -323,13 +391,32 @@ namespace KolonLibrary
             return false;
         }
         #endregion expression check
+
+
+        public static bool BoolExpression(List<TokenMatch> matches, Node node, out Node outNode)
+        {
+            outNode = node;
+            if(matches.Count > 0)
+            {
+                switch(matches[0]._TokenType)
+                {
+                    case TokenType.BoolValue or TokenType.IdentRef:
+                        Node LiteralExpressionNode = new Node() { _TokenMatch = matches[0], Parent = node };
+                        node.Children.Add(LiteralExpressionNode);
+                        return true; 
+                    default:
+                        break;
+                }
+            }
+            return false;
+        }
     }
 
     public class Node
     {
         public Node? Parent { get; set; }
         public List<Node> Children { get; set; } = new List<Node>();
-        public TokenMatch? TokenMatch { get; set; }
+        public TokenMatch? _TokenMatch { get; set; }
 
         public void ListInfo()
         {
@@ -339,18 +426,18 @@ namespace KolonLibrary
             }
             else
             {
-                if (TokenMatch != null)    
-                    Console.WriteLine($"{TokenMatch.TokenType}, {TokenMatch.Value}");
+                if (_TokenMatch != null)    
+                    Console.WriteLine($"{_TokenMatch._TokenType}, {_TokenMatch.Value}");
                 ListChildInfo();
             }
         }
 
-        private void ListChildInfo()
+        public void ListChildInfo()
         {
             foreach (var child in Children)
             {
-                if (TokenMatch != null && child.TokenMatch != null)
-                    Console.WriteLine($"{child.TokenMatch.TokenType}, {child.TokenMatch.Value} parent: {TokenMatch.TokenType}, {TokenMatch.Value}");
+                if (_TokenMatch != null && child._TokenMatch != null)
+                    Console.WriteLine($"{child._TokenMatch._TokenType}, {child._TokenMatch.Value} parent: {_TokenMatch._TokenType}, {_TokenMatch.Value}");
                 child.ListChildInfo();
             }
         }
@@ -363,24 +450,52 @@ namespace KolonLibrary
             }
             else return this;
         }
+
+	public TokenType GetValueType(Node node)
+	{
+	    if(node._TokenMatch != null)
+	    {
+	        switch (node._TokenMatch._TokenType )
+	        {
+		    case TokenType.Add or TokenType.Div or TokenType.Sub or TokenType.Mul:
+			if(node.Children[0] != null)
+			{
+			    return(GetValueType(node.Children[0]));
+			}
+		        break;
+		    case TokenType.IntValue or TokenType.BoolValue:
+			return node._TokenMatch._TokenType;
+	        }
+	    }
+	    return TokenType.Empty;
+	}
     }
 
     public class Parser
     {
-        //TODO : run a check somewhere to make sure that a line is not just an empty line, and actually contains tokens
-        private List<List<TokenMatch>> TokenMatches = new List<List<TokenMatch>>();
+
+        //TODO: add support for boolean values
+        //TODO: add support for floats
+        //TODO: add support for comments
+        //TODO: add support for strings
+        //TODO: add support for options between print and printline
+        //TODO: add support for debugging
+        //TODO: add support for memory management 
+        //TODO: check if a variable already exists when trying to declare it
+
+        private List<ListOfTokens>  TokenMatches = new();
         private Runtime Runtime = Runtime.GetInstance();
 
-        public Parser(List<List<TokenMatch>> TokenMatches)
+        public Parser(List<ListOfTokens> TokenMatches)
         {
             this.TokenMatches = TokenMatches;
         }
 
         public void Parse()
         {
-            Rules rules = new Rules(ref TokenMatches, Runtime.statements);
+            Rules rules = new Rules(ref TokenMatches, Runtime.statements, Runtime.blocks);
             rules.VerifyMatches();
-            Runtime.Run();
+            Runtime.Run(Runtime.statements);
         }
     }
 }
