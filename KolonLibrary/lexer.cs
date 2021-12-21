@@ -10,11 +10,11 @@ namespace KolonLibrary
     /// </summary>
     public enum TokenType
     {
+        Comment,
         Int,
         Bool,
         Ident,
         IdentRef,
-        DoubleEqual,
         IntValue,
         BoolValue,
         PlusEquals,
@@ -51,11 +51,11 @@ namespace KolonLibrary
             this.InputStrings = InputStrings;
 
             //add token definitions
+            TokenDefinitions.Add(new TokenDef(TokenType.Comment, @"^(\/\/)"));
             TokenDefinitions.Add(new TokenDef(TokenType.Int, "^(int) "));
             TokenDefinitions.Add(new TokenDef(TokenType.Bool, "^(bool) "));
-            TokenDefinitions.Add(new TokenDef(TokenType.Function, "^(function) "));
+            TokenDefinitions.Add(new TokenDef(TokenType.Function, "^(func) "));
             TokenDefinitions.Add(new TokenDef(TokenType.Comma, "^,"));
-            TokenDefinitions.Add(new TokenDef(TokenType.DoubleEqual, "^(==)"));
             TokenDefinitions.Add(new TokenDef(TokenType.BoolValue, @"^(true)|^(false)|^(True)|^(False)"));
             TokenDefinitions.Add(new TokenDef(TokenType.Ident, "^[a-zA-Z_][a-zA-Z0-9_]*"));
             TokenDefinitions.Add(new TokenDef(TokenType.IdentRef, @"^\$[a-zA-Z_][a-zA-Z0-9_]*"));
@@ -102,7 +102,11 @@ namespace KolonLibrary
                             var TokenMatch = token.Match(InputString[i..]);
                             if (TokenMatch.IsMatch)
                             {
-                                if(TokenMatch._TokenType == TokenType.OpeningBrace)
+                                if(TokenMatch._TokenType == TokenType.Comment)
+                                {
+                                    goto comment;
+                                }
+                                else if(TokenMatch._TokenType == TokenType.OpeningBrace)
                                 {
                                     isFunction = true;
                                 }
@@ -121,7 +125,7 @@ namespace KolonLibrary
                         }
                     }
                 }
-
+comment:    
                 TokenMatchesList.Add(TokenMatches);
 
                 for(int i = 0; i < TokenMatches.matches.Count; i++)
