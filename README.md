@@ -11,7 +11,9 @@ Kolon is an easy-to-use programming language built with c#
 ---
 
 # Usage
-
+```
+git clone https://github.com/denniskaydalov/Kolon.git
+```
 To run your Kolon code, start by navigating to:
 ```
 .\KolonLanguage\KolonApplication
