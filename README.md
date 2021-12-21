@@ -16,7 +16,7 @@ git clone https://github.com/denniskaydalov/Kolon.git
 ```
 To run your Kolon code, start by navigating to:
 ```
-.\KolonLanguage\KolonApplication
+.\Kolon\KolonApplication
 ```
 Then run:
 ```
